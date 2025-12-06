@@ -9,7 +9,7 @@ This project uses Git for version control. To get started:
 ```bash
 # Clone the repository
 git clone https://github.com/Rakesh2109/iot-mqtt-server-pi.git
-cd Pi_Server
+cd iot-mqtt-server-pi
 
 # Or if working with an existing local repository
 git status
@@ -30,25 +30,44 @@ git status
 
 ## Prerequisites
 
-- Docker and Docker Compose installed
-- Network access for monitoring (Suricata uses host networking)
+- **Docker** and **Docker Compose** installed
+  - Install Docker: `curl -fsSL https://get.docker.com -o get-docker.sh && sh get-docker.sh`
+  - Docker Compose is included with Docker Desktop or install separately
+- **Network access** for monitoring (Suricata uses host networking)
+- **Minimum 4GB RAM** recommended for all services
+- **Linux host** (Suricata and Zeek require host networking mode)
+
+### Verify Docker Installation
+
+```bash
+docker --version
+docker compose version
+```
 
 ## Quick Start
 
-1. **Start all services:**
+1. **Clone and navigate to the repository:**
+   ```bash
+   git clone https://github.com/Rakesh2109/iot-mqtt-server-pi.git
+   cd iot-mqtt-server-pi
+   ```
+
+2. **Start all services:**
    ```bash
    docker compose up -d
    ```
 
-2. **Check service status:**
+3. **Check service status:**
    ```bash
    docker compose ps
    ```
 
-3. **View logs:**
+4. **View logs:**
    ```bash
    docker compose logs -f
    ```
+
+**Note:** On first run, services may take a few minutes to initialize, especially InfluxDB and Grafana.
 
 ## Service Access
 
@@ -136,7 +155,7 @@ docker compose down -v
 ### Repository Structure
 
 ```
-Pi_Server/
+iot-mqtt-server-pi/
 ├── docker-compose.yml          # Main orchestration file
 ├── flask/                      # Flask API service
 ├── grafana/                    # Grafana configuration and dashboards
