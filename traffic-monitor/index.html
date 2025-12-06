@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IoT IDS - Traffic Monitoring Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .status-bar {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .status-item {
+            background: #f0f0f0;
+            padding: 10px 15px;
+            border-radius: 5px;
+            flex: 1;
+            min-width: 150px;
+        }
+        
+        .status-item strong {
+            display: block;
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+        
+        .status-item span {
+            color: #333;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+        
+        .status-online {
+            color: #28a745;
+        }
+        
+        .status-offline {
+            color: #dc3545;
+        }
+        
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .card h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .stat-card h3 {
+            font-size: 0.9em;
+            opacity: 0.9;
+            margin-bottom: 10px;
+        }
+        
+        .stat-card .value {
+            font-size: 2em;
+            font-weight: bold;
+        }
+        
+        .refresh-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            margin-top: 10px;
+        }
+        
+        .refresh-btn:hover {
+            background: #5568d3;
+        }
+        
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔒 IoT IDS - Traffic Monitoring Dashboard</h1>
+            <div class="status-bar">
+                <div class="status-item">
+                    <strong>System Status</strong>
+                    <span id="system-status" class="status-online">Online</span>
+                </div>
+                <div class="status-item">
+                    <strong>Last Update</strong>
+                    <span id="last-update">--</span>
+                </div>
+                <div class="status-item">
+                    <strong>Messages/Hour</strong>
+                    <span id="messages-hour">0</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>Total Messages</h3>
+                <div class="value" id="total-messages">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Active Topics</h3>
+                <div class="value" id="active-topics">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Alerts</h3>
+                <div class="value" id="alerts">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Data Rate</h3>
+                <div class="value" id="data-rate">0 msg/s</div>
+            </div>
+        </div>
+        
+        <div class="dashboard-grid">
+            <div class="card">
+                <h2>Message Traffic (Last Hour)</h2>
+                <div class="chart-container">
+                    <canvas id="trafficChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2>Topic Distribution</h2>
+                <div class="chart-container">
+                    <canvas id="topicChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>Recent Activity</h2>
+            <div id="activity-log" style="max-height: 300px; overflow-y: auto;">
+                <p style="color: #666; text-align: center; padding: 20px;">Loading activity...</p>
+            </div>
+            <button class="refresh-btn" onclick="loadData()">Refresh Data</button>
+        </div>
+    </div>
+    
+    <script>
+        const API_URL = 'http://localhost:5000';
+        let trafficChart, topicChart;
+        let messageCount = 0;
+        let lastUpdateTime = Date.now();
+        
+        // Initialize charts
+        function initCharts() {
+            const trafficCtx = document.getElementById('trafficChart').getContext('2d');
+            trafficChart = new Chart(trafficCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Messages per Minute',
+                        data: [],
+                        borderColor: 'rgb(102, 126, 234)',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+            
+            const topicCtx = document.getElementById('topicChart').getContext('2d');
+            topicChart = new Chart(topicCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        data: [],
+                        backgroundColor: [
+                            'rgba(102, 126, 234, 0.8)',
+                            'rgba(118, 75, 162, 0.8)',
+                            'rgba(255, 99, 132, 0.8)',
+                            'rgba(54, 162, 235, 0.8)',
+                            'rgba(255, 206, 86, 0.8)',
+                            'rgba(75, 192, 192, 0.8)'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        }
+        
+        async function loadData() {
+            try {
+                // Load metrics
+                const response = await fetch(`${API_URL}/api/metrics`);
+                const data = await response.json();
+                
+                if (data.metrics && data.metrics.length > 0) {
+                    updateCharts(data.metrics);
+                    updateStats(data.metrics);
+                }
+                
+                // Update last update time
+                document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
+                
+            } catch (error) {
+                console.error('Error loading data:', error);
+                document.getElementById('system-status').textContent = 'Offline';
+                document.getElementById('system-status').className = 'status-offline';
+            }
+        }
+        
+        function updateCharts(metrics) {
+            // Group by time for traffic chart
+            const timeGroups = {};
+            metrics.forEach(m => {
+                const time = new Date(m.time).toLocaleTimeString();
+                timeGroups[time] = (timeGroups[time] || 0) + m.value;
+            });
+            
+            const times = Object.keys(timeGroups).sort();
+            const values = times.map(t => timeGroups[t]);
+            
+            trafficChart.data.labels = times.slice(-20); // Last 20 data points
+            trafficChart.data.datasets[0].data = values.slice(-20);
+            trafficChart.update();
+            
+            // Group by topic for topic chart
+            const topicGroups = {};
+            metrics.forEach(m => {
+                const topic = m.topic || 'unknown';
+                topicGroups[topic] = (topicGroups[topic] || 0) + m.value;
+            });
+            
+            const topics = Object.keys(topicGroups).slice(0, 6); // Top 6 topics
+            const topicValues = topics.map(t => topicGroups[t]);
+            
+            topicChart.data.labels = topics;
+            topicChart.data.datasets[0].data = topicValues;
+            topicChart.update();
+        }
+        
+        function updateStats(metrics) {
+            const total = metrics.reduce((sum, m) => sum + m.value, 0);
+            const topics = new Set(metrics.map(m => m.topic)).size;
+            
+            document.getElementById('total-messages').textContent = total.toLocaleString();
+            document.getElementById('active-topics').textContent = topics;
+            
+            // Calculate messages per hour
+            const now = Date.now();
+            const hourAgo = now - (60 * 60 * 1000);
+            const recentMessages = metrics.filter(m => new Date(m.time).getTime() > hourAgo);
+            const messagesPerHour = recentMessages.reduce((sum, m) => sum + m.value, 0);
+            document.getElementById('messages-hour').textContent = messagesPerHour.toLocaleString();
+            
+            // Calculate data rate
+            const timeDiff = (now - lastUpdateTime) / 1000; // seconds
+            if (timeDiff > 0) {
+                const rate = total / timeDiff;
+                document.getElementById('data-rate').textContent = rate.toFixed(2) + ' msg/s';
+            }
+            lastUpdateTime = now;
+        }
+        
+        // Initialize on page load
+        initCharts();
+        loadData();
+        
+        // Auto-refresh every 5 seconds
+        setInterval(loadData, 5000);
+    </script>
+</body>
+</html>
+

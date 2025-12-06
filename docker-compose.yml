@@ -1,0 +1,163 @@
+version: '3.8'
+
+services:
+  # Mosquitto MQTT Broker
+  mosquitto:
+    image: eclipse-mosquitto:latest
+    container_name: mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"   # MQTT
+      - "9001:9001"   # WebSocket
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+    networks:
+      - iot-network
+
+  # Suricata IDS
+  suricata:
+    image: jasonish/suricata:latest
+    container_name: suricata
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - SYS_NICE
+    network_mode: host
+    volumes:
+      - ./suricata/config:/etc/suricata
+      - ./suricata/logs:/var/log/suricata
+      - ./suricata/pcap:/var/log/suricata/pcap
+    environment:
+      - INTERFACE=eth0
+    depends_on:
+      - loki
+
+  # InfluxDB - Time-series Database
+  influxdb:
+    image: influxdb:2.7
+    container_name: influxdb
+    restart: unless-stopped
+    ports:
+      - "8086:8086"
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+      - influxdb-config:/etc/influxdb2
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=admin123
+      - DOCKER_INFLUXDB_INIT_ORG=iot-ids
+      - DOCKER_INFLUXDB_INIT_BUCKET=iot-data
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=iot-ids-admin-token-change-in-production
+    networks:
+      - iot-network
+
+  # Loki - Log Aggregation
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki:/etc/loki
+      - loki-data:/loki
+    command: -config.file=/etc/loki/loki-config.yml
+    networks:
+      - iot-network
+
+  # Grafana - Dashboard
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    depends_on:
+      - influxdb
+      - loki
+    networks:
+      - iot-network
+
+  # Zeek - Network Analysis Framework
+  zeek:
+    image: blacktop/zeek:latest
+    container_name: zeek
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - SYS_NICE
+    network_mode: host
+    volumes:
+      - ./zeek/config:/opt/zeek/etc
+      - ./zeek/logs:/opt/zeek/logs
+    environment:
+      - INTERFACE=eth0
+    command: zeek -i ${INTERFACE} local
+    networks:
+      - iot-network
+
+  # Flask API - Data Processing
+  flask:
+    build:
+      context: ./flask
+      dockerfile: Dockerfile
+    container_name: flask-api
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./flask:/app
+      - flask-data:/app/data
+    environment:
+      - FLASK_ENV=production
+      - MQTT_BROKER=mosquitto
+      - MQTT_PORT=1883
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=iot-ids-admin-token-change-in-production
+      - INFLUXDB_ORG=iot-ids
+      - INFLUXDB_BUCKET=iot-data
+    depends_on:
+      - mosquitto
+      - influxdb
+      - loki
+    networks:
+      - iot-network
+
+  # Traffic Monitoring Web Dashboard
+  traffic-monitor:
+    image: nginx:alpine
+    container_name: traffic-monitor
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - ./traffic-monitor:/usr/share/nginx/html:ro
+    depends_on:
+      - flask
+    networks:
+      - iot-network
+
+volumes:
+  influxdb-data:
+  influxdb-config:
+  loki-data:
+  grafana-data:
+  flask-data:
+
+networks:
+  iot-network:
+    driver: bridge
+

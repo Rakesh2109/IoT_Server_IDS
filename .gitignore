@@ -1,0 +1,36 @@
+# Docker volumes
+*.log
+*.log.*
+
+# Data directories
+mosquitto/data/*
+mosquitto/log/*
+suricata/logs/*
+suricata/pcap/*
+zeek/logs/*
+!mosquitto/data/.gitkeep
+!mosquitto/log/.gitkeep
+!suricata/logs/.gitkeep
+!suricata/pcap/.gitkeep
+!zeek/logs/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
