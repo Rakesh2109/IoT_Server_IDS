@@ -8,14 +8,14 @@ This project uses Git for version control. To get started:
 
 ```bash
 # Clone the repository
-git clone https://github.com/Rakesh2109/iot-ids.git
-cd iot-ids
+git clone https://github.com/Rakesh2109/IoT_Server_IDS.git
+cd IoT_Server_IDS
 
 # Or if working with an existing local repository
 git status
 ```
 
-**GitHub Repository**: [https://github.com/Rakesh2109/iot-ids](https://github.com/Rakesh2109/iot-ids)
+**GitHub Repository**: [https://github.com/Rakesh2109/IoT_Server_IDS](https://github.com/Rakesh2109/IoT_Server_IDS)
 
 ## Architecture
 
@@ -48,8 +48,8 @@ docker compose version
 
 1. **Clone and navigate to the repository:**
    ```bash
-   git clone https://github.com/Rakesh2109/iot-ids.git
-   cd iot-ids
+   git clone https://github.com/Rakesh2109/IoT_Server_IDS.git
+   cd IoT_Server_IDS
    ```
 
 2. **Start all services:**
@@ -155,7 +155,7 @@ docker compose down -v
 ### Repository Structure
 
 ```
-iot-ids/
+IoT_Server_IDS/
 ├── docker-compose.yml          # Main orchestration file
 ├── flask/                      # Flask API service
 ├── grafana/                    # Grafana configuration and dashboards
